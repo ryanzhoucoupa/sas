@@ -1,19 +1,15 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	"reflect"
-	"runtime"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/dovadi/dbconfig"
 	"github.com/gin-gonic/gin"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 // auto-generated build constants
@@ -23,21 +19,11 @@ var (
 )
 
 var (
-	ratePath   = "/rates"
 	healthPath = "/health"
-)
-
-// mysql connections
-var (
-	connectionString = dbconfig.MysqlConnectionString("settings.json")
 )
 
 var (
 	rengine *gin.Engine
-)
-
-var (
-	db *sql.DB
 )
 
 var (
@@ -58,13 +44,6 @@ type Configuration struct {
 // Basic health check. Check to see if db connection is still there
 func healthContext(c *gin.Context) {
 	status := "ok"
-	db, err := sql.Open("mysql", connectionString)
-
-	_, err = db.Query("SELECT 1 from users limit 1")
-	if err != nil {
-		status = fmt.Sprintf("Error connecting with db with error: %v", err)
-		log.Error(status)
-	}
 
 	c.JSON(http.StatusOK, gin.H{"status": status, "version": version, "commit": commit})
 }
@@ -74,10 +53,6 @@ func buildRoutes(r *gin.Engine) {
 	{
 		api.GET(healthPath, healthContext)
 	}
-}
-
-func getHTTPClient(r *http.Request) *http.Client {
-	return &http.Client{}
 }
 
 func loadConfiguration(configFile string) (*Configuration, error) {
@@ -103,17 +78,6 @@ func loadConfiguration(configFile string) (*Configuration, error) {
 		}
 	}
 	return &configuration, nil
-}
-
-func ginErrorHandler(message string, err error, c *gin.Context, printStack bool, sendAirbrake bool) {
-	w := gin.DefaultWriter
-	w.Write([]byte(fmt.Sprintf("%s error:%v", message, err)))
-	if printStack {
-		trace := make([]byte, maxStackTraceSize)
-		runtime.Stack(trace, false)
-		w.Write([]byte(fmt.Sprintf("stack trace--\n%s\n--", trace)))
-	}
-	c.AbortWithError(http.StatusInternalServerError, err)
 }
 
 func main() {
